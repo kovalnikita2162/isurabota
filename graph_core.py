@@ -13,10 +13,10 @@ INF = 10 ** 9
 
 class GraphLogger:
     """
-    Простой логгер для пошаговой визуализации алгоритмов.
+    Тут собираем шаги алгоритма.
 
-    Каждый алгоритм добавляет сюда шаги, а потом эти шаги можно
-    отправить на фронтенд для анимации графа.
+    Потом Никита берет эти данные и показывает на странице:
+    активную вершину, посещенные вершины и текст лога.
     """
 
     def __init__(self) -> None:
@@ -30,7 +30,7 @@ class GraphLogger:
         state_data: Dict[str, Any],
         message: str,
     ) -> None:
-        """Добавляет один шаг алгоритма в общий список логов."""
+        """Добавляем один шаг, чтобы потом показать его в логе справа."""
         self.logs.append(
             {
                 "step": self.step_counter,
@@ -43,25 +43,20 @@ class GraphLogger:
         self.step_counter += 1
 
     def get_logs(self) -> List[Dict[str, Any]]:
-        """Возвращает все накопленные шаги."""
+        """Отдаем все шаги, которые успели собрать."""
         return self.logs
 
 
 class GraphValidator:
-    """Проверки, которые нужны почти всем алгоритмам."""
+    """Здесь лежат общие проверки для графа."""
 
     @staticmethod
     def validate_matrix(matrix: List[List[int]]) -> Tuple[bool, str, int]:
         """
-        Проверяет матрицу смежности для простого неориентированного графа.
+        Проверяем обычную матрицу смежности.
 
-        Требования:
-        - матрица не пустая;
-        - матрица квадратная;
-        - число вершин не больше 20;
-        - значения только 0 или 1;
-        - матрица симметричная;
-        - на главной диагонали стоят нули.
+        Для наших задач нужно, чтобы матрица была квадратной,
+        состояла только из 0 и 1, была симметричной и без петель.
         """
         if not matrix or not isinstance(matrix, list):
             return False, "Матрица смежности не может быть пустой", 0
@@ -90,7 +85,7 @@ class GraphValidator:
 
     @staticmethod
     def validate_start_node(start_node: int, n: int) -> Tuple[bool, str]:
-        """Проверяет, что стартовая вершина существует."""
+        """Проверяем, что такая стартовая вершина вообще есть в графе."""
         if not isinstance(start_node, int):
             return False, "Стартовая вершина должна быть целым числом"
 
@@ -102,8 +97,9 @@ class GraphValidator:
     @staticmethod
     def validate_weight_matrix(matrix: List[List[int]]) -> Tuple[bool, str, int]:
         """
-        Проверяет взвешенную матрицу смежности.
-        Значения: 0 (нет ребра) или 1–99 (вес ребра).
+        Проверяем матрицу с весами.
+
+        0 значит, что ребра нет. Число больше 0 значит вес ребра.
         """
         if not matrix or not isinstance(matrix, list):
             return False, "Матрица смежности не может быть пустой", 0
@@ -129,7 +125,7 @@ class GraphValidator:
 
     @staticmethod
     def validate_user_order(user_order: List[int], n: int) -> Tuple[bool, str]:
-        """Проверяет пользовательский обход DFS/BFS."""
+        """Проверяем ответ пользователя для DFS или BFS."""
         if not isinstance(user_order, list):
             return False, "Ответ пользователя должен быть списком вершин"
 
@@ -144,7 +140,7 @@ class GraphValidator:
 
 
 # =========================================================
-# ЕДИНЫЙ ФОРМАТ ОТВЕТОВ ДЛЯ API
+# ОБЩИЙ ФОРМАТ ОТВЕТА ДЛЯ СТРАНИЦЫ
 # =========================================================
 
 def success_response(
@@ -152,7 +148,12 @@ def success_response(
     logs: List[Dict[str, Any]],
     detailed_results: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Формирует успешный ответ в одном стиле для всех алгоритмов."""
+    """
+    Собираем успешный ответ в одном формате.
+
+    Так Никите проще выводить результат: везде есть status,
+    final_result и logs.
+    """
     response = {
         "status": "success",
         "final_result": final_result,
@@ -166,7 +167,12 @@ def success_response(
 
 
 def error_response(message: str, logs: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-    """Формирует ответ с ошибкой в одном стиле для всех алгоритмов."""
+    """
+    Возвращаем ошибку в таком же формате.
+
+    Никита может просто проверить status == "error"
+    и вывести сообщение пользователю.
+    """
     return {
         "status": "error",
         "final_result": message,
@@ -175,34 +181,34 @@ def error_response(message: str, logs: Optional[List[Dict[str, Any]]] = None) ->
 
 
 def get_visited_nodes(visited: List[bool]) -> List[int]:
-    """Возвращает список посещенных вершин по массиву True/False."""
+    """Из массива True/False делаем обычный список посещенных вершин."""
     return [i for i, is_visited in enumerate(visited) if is_visited]
 
 
 def get_neighbors(matrix: List[List[int]], vertex: int) -> List[int]:
     """
-    Возвращает соседей вершины в отсортированном порядке.
+    Возвращаем соседей вершины.
 
-    Это важно для детерминированности:
-    если соседи 5, 2, 4, то алгоритм пойдет в 2, потом 4, потом 5.
+    Сортировка нужна, чтобы обход всегда шел одинаково:
+    сначала меньшие номера вершин, потом большие.
     """
     n = len(matrix)
     return sorted([i for i in range(n) if matrix[vertex][i] == 1])
 
 
 def get_weighted_neighbors(matrix: List[List[int]], vertex: int) -> List[int]:
-    """Возвращает соседей вершины для взвешенной матрицы (вес > 0 означает ребро)."""
+    """Ищем соседей во взвешенном графе: если вес больше 0, ребро есть."""
     n = len(matrix)
     return sorted([i for i in range(n) if matrix[vertex][i] > 0])
 
 
 def calculate_degrees(matrix: List[List[int]]) -> List[int]:
-    """Считает степень каждой вершины."""
+    """Считаем степень каждой вершины, то есть сколько у нее ребер."""
     return [sum(row) for row in matrix]
 
 
 def count_edges(matrix: List[List[int]]) -> int:
-    """Считает количество ребер в неориентированном графе."""
+    """Считаем ребра графа. Делим на 2, потому что матрица симметричная."""
     return sum(sum(row) for row in matrix) // 2
 
 
@@ -212,14 +218,10 @@ def count_edges(matrix: List[List[int]]) -> int:
 
 def analyze_basic_graph(matrix: List[List[int]]) -> Dict[str, Any]:
     """
-    Задача 0.
+    Задача 0: базовый анализ графа.
 
-    Показывает:
-    - степень каждой вершины;
-    - число компонент связности;
-    - является ли граф эйлеровым или полуэйлеровым;
-    - является ли граф двудольным;
-    - является ли граф полным двудольным.
+    Тут сразу считаем несколько простых характеристик:
+    степени вершин, компоненты связности, эйлеровость и двудольность.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -232,7 +234,7 @@ def analyze_basic_graph(matrix: List[List[int]]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=[],
         state_data={"degrees": degrees},
-        message=f"Считаем степени вершин: {dict(enumerate(degrees))}.",
+        message=f"Вычисляем степени вершин: {dict(enumerate(degrees))}.",
     )
 
     components_response = find_components(matrix)
@@ -261,8 +263,8 @@ def analyze_basic_graph(matrix: List[List[int]]) -> Dict[str, Any]:
             "euler_status": euler_status,
         },
         message=(
-            f"Проверяем эйлеровость: нечетные вершины {odd_vertices}. "
-            f"Итог: граф {euler_status}."
+            f"Проверяем эйлеровость: вершины нечётной степени — {odd_vertices}. "
+            f"Вывод: граф {euler_status}."
         ),
     )
 
@@ -287,9 +289,9 @@ def analyze_basic_graph(matrix: List[List[int]]) -> Dict[str, Any]:
 
 def run_dfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
     """
-    Выполняет обход графа в глубину, DFS.
+    Запускаем DFS, то есть обход в глубину.
 
-    Возвращает порядок обхода и подробные шаги для визуализации.
+    Кроме ответа сохраняем шаги, чтобы Никита мог показать процесс на странице.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -308,7 +310,7 @@ def run_dfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
         active_node=start_node,
         visited_nodes=[],
         state_data={"start_node": start_node},
-        message=f"Начинаем DFS с вершины {start_node}.",
+        message=f"Начинаем обход в глубину с вершины <b>{start_node}</b>.",
     )
 
     def dfs(vertex: int, depth: int) -> None:
@@ -327,8 +329,8 @@ def run_dfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
                 "available_neighbors": neighbors,
             },
             message=(
-                f"Зашли в вершину {vertex}. "
-                f"Непосещенные соседи по возрастанию: {neighbors}."
+                f"Погружаемся в вершину <b>{vertex}</b>, отмечаем как посещённую. "
+                f"Непосещённые соседи: {neighbors}."
             ),
         )
 
@@ -338,7 +340,7 @@ def run_dfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
                     active_node=vertex,
                     visited_nodes=order.copy(),
                     state_data={"stack": stack.copy(), "next_node": neighbor},
-                    message=f"Из вершины {vertex} переходим глубже в вершину {neighbor}.",
+                    message=f"Из вершины <b>{vertex}</b> переходим в вершину <b>{neighbor}</b>.",
                 )
                 dfs(neighbor, depth + 1)
 
@@ -348,7 +350,7 @@ def run_dfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
             active_node=vertex,
             visited_nodes=order.copy(),
             state_data={"stack": stack.copy()},
-            message=f"Все соседи вершины {vertex} обработаны. Возвращаемся назад.",
+            message=f"Все соседи вершины <b>{vertex}</b> обработаны — возвращаемся на уровень выше.",
         )
 
     dfs(start_node, 0)
@@ -357,7 +359,7 @@ def run_dfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=order.copy(),
         state_data={"dfs_order": order.copy()},
-        message=f"DFS завершен. Итоговый порядок обхода: {order}.",
+        message=f"Обход в глубину завершён. Порядок посещения вершин: {order}.",
     )
 
     final_result = order.copy()
@@ -376,10 +378,9 @@ def check_dfs_answer(
     start_node: int = 0,
 ) -> Dict[str, Any]:
     """
-    Проверяет, правильно ли пользователь ввел DFS-обход.
+    Проверяем, совпал ли ответ пользователя с правильным DFS.
 
-    Правильный ответ считается по правилу:
-    соседи всегда перебираются по возрастанию номера вершины.
+    Соседей всегда берем по возрастанию, чтобы не было разных вариантов ответа.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -407,8 +408,8 @@ def check_dfs_answer(
             "is_correct": is_correct,
         },
         message=(
-            "Проверяем DFS-обход пользователя. "
-            f"Ответ пользователя: {user_order}. Правильный ответ: {correct_order}."
+            "Сравниваем ответ с эталонным порядком обхода в глубину. "
+            f"Ваш вариант: {user_order}. Правильный: {correct_order}."
         ),
     )
 
@@ -416,7 +417,7 @@ def check_dfs_answer(
         "is_correct": is_correct,
         "user_order": user_order,
         "correct_order": correct_order,
-        "message": "DFS введен правильно." if is_correct else "DFS введен неправильно.",
+        "message": "Обход введён правильно." if is_correct else "Обход введён неправильно.",
     }
 
     return success_response(final_result, logger.get_logs(), final_result)
@@ -428,9 +429,9 @@ def check_dfs_answer(
 
 def run_bfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
     """
-    Выполняет обход графа в ширину, BFS.
+    Запускаем BFS, то есть обход в ширину.
 
-    Возвращает порядок обхода и подробные шаги для визуализации.
+    Сохраняем и итоговый порядок, и шаги для отображения на странице.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -450,7 +451,7 @@ def run_bfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
         active_node=start_node,
         visited_nodes=get_visited_nodes(visited),
         state_data={"queue": list(queue)},
-        message=f"Начинаем BFS с вершины {start_node}. Добавляем ее в очередь.",
+        message=f"Начинаем обход в ширину с вершины <b>{start_node}</b> — помещаем её в очередь.",
     )
 
     while queue:
@@ -474,9 +475,9 @@ def run_bfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
                 "added_neighbors": new_neighbors,
             },
             message=(
-                f"Извлекли вершину {current} из очереди. "
-                f"Новые соседи по возрастанию: {new_neighbors}. "
-                f"Текущая очередь: {list(queue)}."
+                f"Извлекаем вершину <b>{current}</b> из очереди. "
+                f"Добавляем непосещённых соседей: {new_neighbors}. "
+                f"Очередь: {list(queue)}."
             ),
         )
 
@@ -484,7 +485,7 @@ def run_bfs(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=order.copy(),
         state_data={"bfs_order": order.copy()},
-        message=f"BFS завершен. Итоговый порядок обхода: {order}.",
+        message=f"Обход в ширину завершён. Порядок посещения вершин: {order}.",
     )
 
     final_result = order.copy()
@@ -503,10 +504,9 @@ def check_bfs_answer(
     start_node: int = 0,
 ) -> Dict[str, Any]:
     """
-    Проверяет, правильно ли пользователь ввел BFS-обход.
+    Проверяем, совпал ли ответ пользователя с правильным BFS.
 
-    Правильный ответ считается по правилу:
-    соседи всегда перебираются по возрастанию номера вершины.
+    Здесь тоже сортируем соседей, чтобы правильный ответ был один.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -534,8 +534,8 @@ def check_bfs_answer(
             "is_correct": is_correct,
         },
         message=(
-            "Проверяем BFS-обход пользователя. "
-            f"Ответ пользователя: {user_order}. Правильный ответ: {correct_order}."
+            "Сравниваем ответ с эталонным порядком обхода в ширину. "
+            f"Ваш вариант: {user_order}. Правильный: {correct_order}."
         ),
     )
 
@@ -543,7 +543,7 @@ def check_bfs_answer(
         "is_correct": is_correct,
         "user_order": user_order,
         "correct_order": correct_order,
-        "message": "BFS введен правильно." if is_correct else "BFS введен неправильно.",
+        "message": "Обход введён правильно." if is_correct else "Обход введён неправильно.",
     }
 
     return success_response(final_result, logger.get_logs(), final_result)
@@ -555,9 +555,9 @@ def check_bfs_answer(
 
 def find_components(matrix: List[List[int]]) -> Dict[str, Any]:
     """
-    Находит все компоненты связности графа.
+    Ищем компоненты связности.
 
-    Используется BFS, потому что для компонент он простой и понятный.
+    Если из одной вершины нельзя добраться до другой, значит они в разных компонентах.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -583,7 +583,7 @@ def find_components(matrix: List[List[int]]) -> Dict[str, Any]:
                 "current_component": current_component.copy(),
                 "components_found": components.copy(),
             },
-            message=f"Нашли новую компоненту связности. Начинаем с вершины {start_node}.",
+            message=f"Вершина <b>{start_node}</b> не посещена — начинаем обход новой компоненты связности.",
         )
 
         while queue:
@@ -606,8 +606,8 @@ def find_components(matrix: List[List[int]]) -> Dict[str, Any]:
                     "added_neighbors": new_neighbors,
                 },
                 message=(
-                    f"Обрабатываем вершину {current}. "
-                    f"В эту же компоненту добавлены соседи: {new_neighbors}."
+                    f"Посещаем вершину <b>{current}</b>. "
+                    f"Добавляем в компоненту смежные непосещённые вершины: {new_neighbors}."
                 ),
             )
 
@@ -620,7 +620,7 @@ def find_components(matrix: List[List[int]]) -> Dict[str, Any]:
                 "finished_component": current_component.copy(),
                 "components": components.copy(),
             },
-            message=f"Компонента завершена: {current_component}.",
+            message=f"Компонента завершена. Вершины: {current_component}.",
         )
 
     final_result = len(components)
@@ -633,7 +633,7 @@ def find_components(matrix: List[List[int]]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=get_visited_nodes(visited),
         state_data=detailed_results.copy(),
-        message=f"Всего найдено компонент связности: {len(components)}.",
+        message=f"Все компоненты найдены. Итого компонент связности: {len(components)}.",
     )
 
     return success_response(final_result, logger.get_logs(), detailed_results)
@@ -644,7 +644,7 @@ def find_components(matrix: List[List[int]]) -> Dict[str, Any]:
 # =========================================================
 
 def check_components_answer(matrix: List[List[int]], user_count: int) -> Dict[str, Any]:
-    """Проверяет ответ пользователя на число компонент связности."""
+    """Проверяем, правильно ли пользователь указал число компонент."""
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
         return error_response(error_msg)
@@ -667,7 +667,7 @@ def check_components_answer(matrix: List[List[int]], user_count: int) -> Dict[st
         },
         message=(
             "Проверяем число компонент связности. "
-            f"Пользователь ввел {user_count}, правильный ответ {correct_count}."
+            f"Ваш ответ: {user_count}. Правильный: {correct_count}."
         ),
     )
 
@@ -687,10 +687,9 @@ def check_components_answer(matrix: List[List[int]], user_count: int) -> Dict[st
 
 def build_minimum_spanning_tree(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
     """
-    Строит минимальное остовное дерево алгоритмом Прима.
+    Строим минимальное остовное дерево алгоритмом Прима.
 
-    Так как матрица смежности содержит только 0 и 1,
-    каждое ребро считается ребром веса 1.
+    В обычной матрице все существующие ребра считаем одинаковыми, с весом 1.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -717,7 +716,7 @@ def build_minimum_spanning_tree(matrix: List[List[int]], start_node: int = 0) ->
         active_node=start_node,
         visited_nodes=[],
         state_data={"start_node": start_node},
-        message=f"Начинаем алгоритм Прима с вершины {start_node}.",
+        message=f"Запускаем алгоритм Прима. Начальная вершина: <b>{start_node}</b>.",
     )
 
     for _ in range(n):
@@ -736,9 +735,9 @@ def build_minimum_spanning_tree(matrix: List[List[int]], start_node: int = 0) ->
         if parent[current] != -1:
             mst_edges.append([parent[current], current])
             total_weight += 1
-            message = f"Добавляем ребро {parent[current]} - {current} в остовное дерево."
+            message = f"Добавляем ребро (<b>{parent[current]}</b>, <b>{current}</b>) в остовное дерево."
         else:
-            message = f"Берем стартовую вершину {current}."
+            message = f"Включаем начальную вершину <b>{current}</b> в остовное дерево."
 
         logger.add_log(
             active_node=current,
@@ -766,7 +765,8 @@ def build_minimum_spanning_tree(matrix: List[List[int]], start_node: int = 0) ->
                         "min_weight": min_weight.copy(),
                     },
                     message=(
-                        f"Для вершины {neighbor} найдено лучшее ребро через вершину {current}."
+                        f"Обновляем минимальный вес вершины <b>{neighbor}</b>: "
+                        f"лучшее ребро теперь через <b>{current}</b>."
                     ),
                 )
 
@@ -779,7 +779,7 @@ def build_minimum_spanning_tree(matrix: List[List[int]], start_node: int = 0) ->
         active_node=None,
         visited_nodes=get_visited_nodes(in_mst),
         state_data=final_result.copy(),
-        message=f"Минимальное остовное дерево построено: {mst_edges}. Вес: {total_weight}.",
+        message=f"Минимальное остовное дерево построено. Рёбра: {mst_edges}. Суммарный вес: {total_weight}.",
     )
 
     return success_response(final_result, logger.get_logs(), final_result)
@@ -791,10 +791,9 @@ def build_minimum_spanning_tree(matrix: List[List[int]], start_node: int = 0) ->
 
 def find_shortest_paths_from_node(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
     """
-    Находит кратчайшие пути от start_node до всех остальных вершин.
+    Ищем кратчайшие пути от выбранной вершины до всех остальных.
 
-    Используется алгоритм Дейкстры.
-    Для нашей матрицы 0/1 каждое существующее ребро имеет вес 1.
+    Используем Дейкстру. В обычном графе каждое ребро считаем весом 1.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -816,7 +815,7 @@ def find_shortest_paths_from_node(matrix: List[List[int]], start_node: int = 0) 
         active_node=start_node,
         visited_nodes=[],
         state_data={"distances": distances.copy(), "heap": heap.copy()},
-        message=f"Начинаем поиск кратчайших путей от вершины {start_node}.",
+        message=f"Запускаем алгоритм Дейкстры из вершины <b>{start_node}</b>. Расстояние до <b>{start_node}</b> = 0.",
     )
 
     while heap:
@@ -835,7 +834,7 @@ def find_shortest_paths_from_node(matrix: List[List[int]], start_node: int = 0) 
                 "previous": previous.copy(),
                 "heap": heap.copy(),
             },
-            message=f"Фиксируем вершину {current}. Текущее расстояние до нее: {current_distance}.",
+            message=f"Фиксируем кратчайшее расстояние до вершины <b>{current}</b>: d = {current_distance}.",
         )
 
         for neighbor in get_neighbors(matrix, current):
@@ -859,8 +858,8 @@ def find_shortest_paths_from_node(matrix: List[List[int]], start_node: int = 0) 
                         "heap": heap.copy(),
                     },
                     message=(
-                        f"Нашли более короткий путь к вершине {neighbor}: "
-                        f"расстояние {new_distance}, предыдущая вершина {current}."
+                        f"Обновляем расстояние до вершины <b>{neighbor}</b>: "
+                        f"d = {new_distance} через вершину <b>{current}</b>."
                     ),
                 )
 
@@ -876,7 +875,7 @@ def find_shortest_paths_from_node(matrix: List[List[int]], start_node: int = 0) 
         active_node=None,
         visited_nodes=get_visited_nodes(visited),
         state_data=final_result.copy(),
-        message=f"Кратчайшие пути от вершины {start_node} найдены.",
+        message=f"Алгоритм Дейкстры завершён. Все кратчайшие расстояния от вершины <b>{start_node}</b> найдены.",
     )
 
     return success_response(final_result, logger.get_logs(), final_result)
@@ -887,7 +886,7 @@ def build_paths_from_previous(
     distances: List[int],
     start_node: int,
 ) -> Dict[int, List[int]]:
-    """Восстанавливает пути после алгоритма Дейкстры."""
+    """По массиву previous собираем сами пути после Дейкстры."""
     paths: Dict[int, List[int]] = {}
 
     for vertex in range(len(previous)):
@@ -914,9 +913,9 @@ def build_paths_from_previous(
 
 def build_shortest_paths_matrix(matrix: List[List[int]]) -> Dict[str, Any]:
     """
-    Строит матрицу кратчайших расстояний между всеми парами вершин.
+    Строим матрицу кратчайших расстояний между всеми вершинами.
 
-    Используется алгоритм Флойда-Уоршелла.
+    Для этого используем алгоритм Флойда-Уоршелла.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -936,7 +935,7 @@ def build_shortest_paths_matrix(matrix: List[List[int]]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=[],
         state_data={"distance_matrix": matrix_for_json(dist)},
-        message="Создаем начальную матрицу расстояний.",
+        message="Инициализируем матрицу расстояний: d[i][i] = 0, d[i][j] = 1 если ребро есть, иначе ∞.",
     )
 
     for middle in range(n):
@@ -957,8 +956,8 @@ def build_shortest_paths_matrix(matrix: List[List[int]]) -> Dict[str, Any]:
                 "distance_matrix": matrix_for_json(dist),
             },
             message=(
-                f"Пробуем использовать вершину {middle} как промежуточную. "
-                f"Обновленные пары: {changed_pairs}."
+                f"Рассматриваем вершину <b>{middle}</b> как промежуточную. "
+                f"Обновлены пары: {changed_pairs}."
             ),
         )
 
@@ -969,7 +968,7 @@ def build_shortest_paths_matrix(matrix: List[List[int]]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=list(range(n)),
         state_data=detailed_results.copy(),
-        message="Матрица кратчайших путей построена.",
+        message="Алгоритм Флойда–Уоршелла завершён. Матрица кратчайших расстояний построена.",
     )
 
     return success_response(final_result, logger.get_logs(), detailed_results)
@@ -977,9 +976,9 @@ def build_shortest_paths_matrix(matrix: List[List[int]]) -> Dict[str, Any]:
 
 def matrix_for_json(matrix: List[List[int]]) -> List[List[int]]:
     """
-    Заменяет INF на -1, чтобы результат нормально выглядел в JSON.
+    Меняем INF на -1, чтобы нормально отдать результат на страницу.
 
-    -1 означает, что пути между вершинами нет.
+    -1 значит, что пути между вершинами нет.
     """
     return [
         [value if value != INF else -1 for value in row]
@@ -993,10 +992,9 @@ def matrix_for_json(matrix: List[List[int]]) -> List[List[int]]:
 
 def encode_prufer(matrix: List[List[int]]) -> Dict[str, Any]:
     """
-    Строит код Прюфера для дерева.
+    Строим код Прюфера для дерева.
 
-    Код Прюфера можно строить только для дерева:
-    граф должен быть связным и иметь n - 1 ребро.
+    Важно: код Прюфера работает именно для дерева, а не для любого графа.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -1014,7 +1012,7 @@ def encode_prufer(matrix: List[List[int]]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=[],
         state_data={"degrees": degrees.copy()},
-        message="Граф является деревом. Начинаем кодирование Прюфера.",
+        message="Граф является деревом. Начинаем построение кода Прюфера.",
     )
 
     for _ in range(n - 2):
@@ -1039,8 +1037,8 @@ def encode_prufer(matrix: List[List[int]]) -> Dict[str, Any]:
                 "degrees": degrees.copy(),
             },
             message=(
-                f"Берем самый маленький лист {leaf}. "
-                f"Его сосед {neighbor}, добавляем {neighbor} в код Прюфера."
+                f"Минимальный лист — вершина <b>{leaf}</b>. "
+                f"Смежная с ней вершина: <b>{neighbor}</b> — записываем <b>{neighbor}</b> в код."
             ),
         )
 
@@ -1056,14 +1054,14 @@ def encode_prufer(matrix: List[List[int]]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=[],
         state_data=detailed_results.copy(),
-        message=f"Код Прюфера построен: {code}.",
+        message=f"Кодирование завершено. Код Прюфера: {code}.",
     )
 
     return success_response(final_result, logger.get_logs(), detailed_results)
 
 
 def is_tree(matrix: List[List[int]]) -> bool:
-    """Проверяет, является ли граф деревом."""
+    """Проверяем, является ли граф деревом."""
     components_response = find_components(matrix)
 
     if components_response["status"] != "success":
@@ -1082,10 +1080,9 @@ def is_tree(matrix: List[List[int]]) -> bool:
 
 def decode_prufer(prufer_code: List[int]) -> Dict[str, Any]:
     """
-    Декодирует код Прюфера обратно в дерево.
+    По коду Прюфера восстанавливаем дерево.
 
-    На вход подается список чисел, например [1, 1, 2].
-    Если длина кода m, то в дереве будет m + 2 вершины.
+    Например, если в коде m чисел, то в дереве будет m + 2 вершины.
     """
     if not isinstance(prufer_code, list):
         return error_response("Код Прюфера должен быть списком чисел")
@@ -1112,7 +1109,7 @@ def decode_prufer(prufer_code: List[int]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=[],
         state_data={"prufer_code": prufer_code.copy(), "degrees": degrees.copy()},
-        message=f"Начинаем декодирование кода Прюфера {prufer_code}.",
+        message=f"Начинаем восстановление дерева по коду Прюфера {prufer_code}. Число вершин: {n}.",
     )
 
     for value in code_copy:
@@ -1128,7 +1125,7 @@ def decode_prufer(prufer_code: List[int]) -> Dict[str, Any]:
                 "edges": edges.copy(),
                 "degrees": degrees.copy(),
             },
-            message=f"Берем самый маленький лист {leaf} и соединяем его с вершиной {value}.",
+            message=f"Минимальный лист: вершина <b>{leaf}</b>. Добавляем ребро (<b>{leaf}</b>, <b>{value}</b>), удаляем лист.",
         )
 
         degrees[leaf] -= 1
@@ -1143,7 +1140,7 @@ def decode_prufer(prufer_code: List[int]) -> Dict[str, Any]:
             active_node=None,
             visited_nodes=[],
             state_data={"last_edge": [last_vertices[0], last_vertices[1]], "edges": edges.copy()},
-            message=f"Соединяем две последние вершины: {last_vertices[0]} и {last_vertices[1]}.",
+            message=f"Добавляем последнее ребро: соединяем оставшиеся вершины <b>{last_vertices[0]}</b> и <b>{last_vertices[1]}</b>.",
         )
 
     decoded_matrix = edges_to_matrix(edges, n)
@@ -1158,14 +1155,14 @@ def decode_prufer(prufer_code: List[int]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=[],
         state_data=final_result.copy(),
-        message=f"Декодирование завершено. Ребра дерева: {edges}.",
+        message=f"Дерево восстановлено. Рёбра: {edges}.",
     )
 
     return success_response(final_result, logger.get_logs(), final_result)
 
 
 def edges_to_matrix(edges: List[List[int]], n: int) -> List[List[int]]:
-    """Строит матрицу смежности по списку ребер."""
+    """Из списка ребер делаем матрицу смежности."""
     matrix = [[0 for _ in range(n)] for _ in range(n)]
 
     for u, v in edges:
@@ -1181,10 +1178,9 @@ def edges_to_matrix(edges: List[List[int]], n: int) -> List[List[int]]:
 
 def color_graph_greedy(matrix: List[List[int]]) -> Dict[str, Any]:
     """
-    Выполняет жадную раскраску графа.
+    Раскрашиваем граф жадным способом.
 
-    Вершины обрабатываются по убыванию степени.
-    Если степени одинаковые, раньше идет вершина с меньшим номером.
+    Сначала берем вершины с большей степенью, а при равенстве - с меньшим номером.
     """
     is_valid, error_msg, n = GraphValidator.validate_matrix(matrix)
     if not is_valid:
@@ -1228,9 +1224,9 @@ def color_graph_greedy(matrix: List[List[int]]) -> Dict[str, Any]:
                 "chosen_color": color,
             },
             message=(
-                f"Красим вершину {vertex}. "
-                f"Цвета соседей: {sorted(list(used_colors))}. "
-                f"Выбран самый маленький доступный цвет: {color}."
+                f"Раскрашиваем вершину <b>{vertex}</b>. "
+                f"Цвета смежных вершин: {sorted(list(used_colors))}. "
+                f"Назначаем наименьший доступный цвет: {color}."
             ),
         )
 
@@ -1245,7 +1241,7 @@ def color_graph_greedy(matrix: List[List[int]]) -> Dict[str, Any]:
         active_node=None,
         visited_nodes=list(range(n)),
         state_data=final_result.copy(),
-        message=f"Раскраска завершена. Использовано цветов: {chromatic_number}.",
+        message=f"Раскраска завершена. Хроматическое число: {chromatic_number}.",
     )
 
     return success_response(final_result, logger.get_logs(), final_result)
@@ -1257,12 +1253,9 @@ def color_graph_greedy(matrix: List[List[int]]) -> Dict[str, Any]:
 
 def check_bipartite_internal(matrix: List[List[int]], logger: Optional[GraphLogger] = None) -> Dict[str, Any]:
     """
-    Проверяет двудольность графа.
+    Проверяем, можно ли разбить граф на две доли.
 
-    Возвращает:
-    - is_bipartite;
-    - colors;
-    - is_complete_bipartite.
+    Заодно сохраняем цвета вершин и проверяем полный двудольный граф.
     """
     n = len(matrix)
     colors = [-1] * n
@@ -1280,7 +1273,7 @@ def check_bipartite_internal(matrix: List[List[int]], logger: Optional[GraphLogg
                 active_node=start_node,
                 visited_nodes=[start_node],
                 state_data={"colors": colors.copy(), "queue": list(queue)},
-                message=f"Начинаем проверку двудольности с вершины {start_node}. Красим ее в цвет 0.",
+                message=f"Проверяем двудольность. Относим вершину <b>{start_node}</b> к доле 0.",
             )
 
         while queue and is_bipartite:
@@ -1297,8 +1290,8 @@ def check_bipartite_internal(matrix: List[List[int]], logger: Optional[GraphLogg
                             visited_nodes=[i for i in range(n) if colors[i] != -1],
                             state_data={"colors": colors.copy(), "queue": list(queue)},
                             message=(
-                                f"Вершина {neighbor} соседствует с {current}, "
-                                f"поэтому красим ее в другой цвет: {colors[neighbor]}."
+                                f"Вершина <b>{neighbor}</b> смежна с <b>{current}</b> "
+                                f"— относим к доле {colors[neighbor]}."
                             ),
                         )
 
@@ -1314,8 +1307,8 @@ def check_bipartite_internal(matrix: List[List[int]], logger: Optional[GraphLogg
                                 "conflict_edge": [current, neighbor],
                             },
                             message=(
-                                f"Найден конфликт: вершины {current} и {neighbor} "
-                                "имеют один цвет. Граф не двудольный."
+                                f"Противоречие: вершины <b>{current}</b> и <b>{neighbor}</b> смежны, "
+                                "но принадлежат одной доле — граф не двудольный."
                             ),
                         )
                     break
@@ -1364,7 +1357,7 @@ def check_bipartite_internal(matrix: List[List[int]], logger: Optional[GraphLogg
 # =========================================================
 
 def find_shortest_paths_weighted(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
-    """Дейкстра с реальными весами рёбер."""
+    """Дейкстра для графа, где у ребер есть настоящие веса."""
     is_valid, error_msg, n = GraphValidator.validate_weight_matrix(matrix)
     if not is_valid:
         return error_response(error_msg)
@@ -1384,7 +1377,7 @@ def find_shortest_paths_weighted(matrix: List[List[int]], start_node: int = 0) -
         active_node=start_node,
         visited_nodes=[],
         state_data={"distances": distances.copy(), "heap": heap.copy()},
-        message=f"Начинаем поиск кратчайших путей от вершины {start_node}.",
+        message=f"Запускаем алгоритм Дейкстры из вершины <b>{start_node}</b>. Расстояние до <b>{start_node}</b> = 0.",
     )
 
     while heap:
@@ -1397,7 +1390,7 @@ def find_shortest_paths_weighted(matrix: List[List[int]], start_node: int = 0) -
             active_node=current,
             visited_nodes=get_visited_nodes(visited),
             state_data={"distances": distances.copy(), "previous": previous.copy()},
-            message=f"Фиксируем вершину {current}. Расстояние: {current_distance}.",
+            message=f"Фиксируем кратчайшее расстояние до вершины <b>{current}</b>: d = {current_distance}.",
         )
 
         for neighbor in get_weighted_neighbors(matrix, current):
@@ -1413,8 +1406,8 @@ def find_shortest_paths_weighted(matrix: List[List[int]], start_node: int = 0) -
                     visited_nodes=get_visited_nodes(visited),
                     state_data={"updated_vertex": neighbor, "new_distance": new_distance},
                     message=(
-                        f"Нашли более короткий путь к вершине {neighbor}: "
-                        f"расстояние {new_distance} через вершину {current}."
+                        f"Обновляем расстояние до вершины <b>{neighbor}</b>: "
+                        f"d = {new_distance} через вершину <b>{current}</b>."
                     ),
                 )
 
@@ -1428,13 +1421,13 @@ def find_shortest_paths_weighted(matrix: List[List[int]], start_node: int = 0) -
         active_node=None,
         visited_nodes=get_visited_nodes(visited),
         state_data=final_result.copy(),
-        message=f"Кратчайшие пути от вершины {start_node} найдены.",
+        message=f"Алгоритм Дейкстры завершён. Все кратчайшие расстояния от вершины <b>{start_node}</b> найдены.",
     )
     return success_response(final_result, logger.get_logs(), final_result)
 
 
 def build_shortest_paths_matrix_weighted(matrix: List[List[int]]) -> Dict[str, Any]:
-    """Флойд-Уоршелл с реальными весами рёбер."""
+    """Флойд-Уоршелл для графа с настоящими весами ребер."""
     is_valid, error_msg, n = GraphValidator.validate_weight_matrix(matrix)
     if not is_valid:
         return error_response(error_msg)
@@ -1451,7 +1444,7 @@ def build_shortest_paths_matrix_weighted(matrix: List[List[int]]) -> Dict[str, A
         active_node=None,
         visited_nodes=[],
         state_data={"distance_matrix": matrix_for_json(dist)},
-        message="Создаём начальную матрицу расстояний из весов рёбер.",
+        message="Инициализируем матрицу расстояний: d[i][i] = 0, d[i][j] = вес ребра если оно есть, иначе ∞.",
     )
 
     for middle in range(n):
@@ -1468,8 +1461,8 @@ def build_shortest_paths_matrix_weighted(matrix: List[List[int]]) -> Dict[str, A
             state_data={"middle_vertex": middle, "changed_pairs": changed_pairs,
                         "distance_matrix": matrix_for_json(dist)},
             message=(
-                f"Вершина {middle} как промежуточная. "
-                f"Обновлённые пары: {changed_pairs}."
+                f"Рассматриваем вершину <b>{middle}</b> как промежуточную. "
+                f"Обновлены пары: {changed_pairs}."
             ),
         )
 
@@ -1479,13 +1472,13 @@ def build_shortest_paths_matrix_weighted(matrix: List[List[int]]) -> Dict[str, A
         active_node=None,
         visited_nodes=list(range(n)),
         state_data=detailed_results.copy(),
-        message="Матрица кратчайших путей (с весами) построена.",
+        message="Алгоритм Флойда–Уоршелла завершён. Матрица кратчайших расстояний построена.",
     )
     return success_response(final_result, logger.get_logs(), detailed_results)
 
 
 def build_minimum_spanning_tree_weighted(matrix: List[List[int]], start_node: int = 0) -> Dict[str, Any]:
-    """Алгоритм Прима с реальными весами рёбер."""
+    """Алгоритм Прима для графа с настоящими весами ребер."""
     is_valid, error_msg, n = GraphValidator.validate_weight_matrix(matrix)
     if not is_valid:
         return error_response(error_msg)
@@ -1510,7 +1503,7 @@ def build_minimum_spanning_tree_weighted(matrix: List[List[int]], start_node: in
         active_node=start_node,
         visited_nodes=[],
         state_data={"start_node": start_node},
-        message=f"Начинаем алгоритм Прима (взвешенный) с вершины {start_node}.",
+        message=f"Запускаем алгоритм Прима. Начальная вершина: <b>{start_node}</b>.",
     )
 
     for _ in range(n):
@@ -1529,9 +1522,9 @@ def build_minimum_spanning_tree_weighted(matrix: List[List[int]], start_node: in
             edge_w = matrix[parent[current]][current]
             mst_edges.append([parent[current], current])
             total_weight += edge_w
-            message = f"Добавляем ребро {parent[current]}–{current} (вес {edge_w})."
+            message = f"Добавляем ребро (<b>{parent[current]}</b>, <b>{current}</b>) в остовное дерево. Вес ребра: {edge_w}."
         else:
-            message = f"Берём стартовую вершину {current}."
+            message = f"Включаем начальную вершину <b>{current}</b> в остовное дерево."
 
         logger.add_log(
             active_node=current,
@@ -1550,8 +1543,8 @@ def build_minimum_spanning_tree_weighted(matrix: List[List[int]], start_node: in
                     visited_nodes=get_visited_nodes(in_mst),
                     state_data={"updated_vertex": neighbor, "new_weight": matrix[current][neighbor]},
                     message=(
-                        f"Для вершины {neighbor} лучший вес: "
-                        f"{matrix[current][neighbor]} через вершину {current}."
+                        f"Обновляем минимальный вес вершины <b>{neighbor}</b>: "
+                        f"новый вес = {matrix[current][neighbor]} через вершину <b>{current}</b>."
                     ),
                 )
 
@@ -1560,7 +1553,7 @@ def build_minimum_spanning_tree_weighted(matrix: List[List[int]], start_node: in
         active_node=None,
         visited_nodes=get_visited_nodes(in_mst),
         state_data=final_result.copy(),
-        message=f"МОД построено: {mst_edges}. Суммарный вес: {total_weight}.",
+        message=f"Минимальное остовное дерево построено. Рёбра: {mst_edges}. Суммарный вес: {total_weight}.",
     )
     return success_response(final_result, logger.get_logs(), final_result)
 
@@ -1578,24 +1571,15 @@ def run_graph_algorithm(
     prufer_code: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """
-    Общая функция-диспетчер.
+    Общая функция для запуска нужной задачи.
 
-    Ее удобно дергать с backend-а, если фронтенд передает название алгоритма.
+    Никита отправляет со страницы название алгоритма, а здесь мы выбираем,
+    какую функцию надо запустить.
 
-    Доступные algorithm_name:
-    - "basic"
-    - "dfs"
-    - "check_dfs"
-    - "bfs"
-    - "check_bfs"
-    - "components"
-    - "check_components"
-    - "mst"
-    - "shortest_paths"
-    - "shortest_matrix"
-    - "prufer_encode"
-    - "prufer_decode"
-    - "coloring"
+    Основные варианты algorithm_name:
+    basic, dfs, check_dfs, bfs, check_bfs, components,
+    check_components, mst, shortest_paths, shortest_matrix,
+    prufer_encode, prufer_decode, coloring.
     """
     if algorithm_name == "prufer_decode":
         if prufer_code is None:

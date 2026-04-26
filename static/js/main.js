@@ -177,6 +177,12 @@ function generateRandomMatrix(n) {
   return randomConnected(n, weighted, 0.35);
 }
 
+function clearMatrix() {
+  const n = currentMatrix.length || parseInt(document.getElementById('matrixSize')?.value || 5);
+  currentMatrix = Array.from({ length: n }, () => Array(n).fill(0));
+  renderMatrix();
+}
+
 function fillExample() {
   const n = parseInt(document.getElementById('matrixSize')?.value || 5);
   currentMatrix = generateRandomMatrix(n);
@@ -256,7 +262,8 @@ function drawGraphFromMatrix(matrix) {
       shape: showAvatars ? 'circularImage' : 'circle',
       image: showAvatars ? avatarUrl(i) : undefined,
       color: nodeColor(i),
-      font: { color: fc, size: 11, face: 'Inter' },
+      size: 26,
+      font: { color: fc, size: showAvatars ? 11 : 14, face: 'Inter' },
       title: `Вершина ${i}`,
     });
   }
@@ -704,7 +711,7 @@ function applyThemeToNetwork() {
   }
   if (nodesDS && nodesDS.length > 0) {
     nodesDS.update(nodesDS.getIds().map(id => ({
-      id, color: nodeColor(id), font: { color: fc },
+      id, color: nodeColor(id), size: 26, font: { color: fc },
     })));
   }
 }
@@ -723,7 +730,8 @@ function toggleNodeMode() {
     id,
     shape: showAvatars ? 'circularImage' : 'circle',
     image: showAvatars ? avatarUrl(id) : undefined,
-    font: { color: fc },
+    size: 26,
+    font: { color: fc, size: showAvatars ? 11 : 14, face: 'Inter' },
   })));
 }
 

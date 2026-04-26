@@ -303,3 +303,59 @@
   background: rgba(255,55,95,0.12) !important;
   border-color: rgba(255,55,95,0.22) !important;
 }
+
+/* ── Mobile layout ──────────────────────────────── */
+@media (max-width: 767px) {
+  /* Allow task page body to scroll */
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Graph canvas: contained block below top bar */
+  #graphCanvas {
+    position: relative !important;
+    top: 0 !important; left: 0 !important;
+    right: auto !important; bottom: auto !important;
+    width: 100% !important;
+    height: 55vw !important;
+    min-height: 240px;
+    max-height: 340px;
+    margin-top: 56px;
+  }
+
+  /* Panels: full-width stacked blocks */
+  .task-left-panel,
+  .task-right-panel {
+    position: static !important;
+    top: auto !important; right: auto !important;
+    bottom: auto !important; left: auto !important;
+    width: calc(100% - 32px) !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    margin: 8px 16px !important;
+  }
+
+  /* Space for fixed bottom nav */
+  .task-right-panel {
+    padding-bottom: 96px !important;
+  }
+
+  /* Cap log box so it doesn't take the whole screen */
+  #logBox {
+    max-height: 200px !important;
+  }
+
+  /* Bigger touch targets for matrix cells */
+  .matrix-table td {
+    width: 26px !important;
+    height: 26px !important;
+  }
+
+  /* Index page: smaller header padding */
+  header.text-center {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
