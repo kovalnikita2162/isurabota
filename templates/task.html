@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} — GraphLab{% endblock %}
+{% block body_class %}overflow-hidden{% endblock %}
+
+{% block body %}
+<!-- Full-screen canvas layer -->
+<div id="graphCanvas" class="fixed inset-0 z-0"></div>
+
+<!-- Top bar -->
+<div class="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-4 pointer-events-none">
+  <div class="pointer-events-auto flex items-center gap-3">
+    <a href="/" class="flex items-center gap-2 text-white/70 hover:text-white transition-colors">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      <span class="text-sm font-medium">Graph<span class="text-[#ff375f]">Lab</span></span>
+    </a>
+    <button onclick="toggleTheme()" id="themeToggle" title="Сменить тему"
+            class="w-8 h-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white
+                   bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+      <span class="icon-sun">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </span>
+      <span class="icon-moon" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </span>
+    </button>
+    <button onclick="toggleNodeMode()" id="nodeToggle" title="Показать цифры"
+            class="w-8 h-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white
+                   bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+      <span class="icon-face">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </span>
+      <span class="icon-nums" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
+          <line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>
+        </svg>
+      </span>
+    </button>
+  </div>
+
+  <!-- Result badge (appears after run) -->
+  <div id="resultBadge" class="pointer-events-auto hidden">
+    <div class="glass-card rounded-2xl px-4 py-2 flex items-center gap-2">
+      <div id="resultIcon" class="w-2 h-2 rounded-full bg-white/30"></div>
+      <span id="resultSummary" class="text-sm text-white/80"></span>
+    </div>
+  </div>
+</div>
+
+<!-- LEFT: Input panel -->
+<div class="task-left-panel fixed top-16 left-4 bottom-24 z-20 w-72 flex flex-col gap-3 overflow-y-auto scrollbar-none">
+
+  <!-- Task header card -->
+  <div class="glass-card rounded-2xl px-4 py-4">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+        {% if task.id % 2 == 0 %}bg-[#ff375f]/20 text-[#ff375f]{% else %}bg-[#0a84ff]/20 text-[#0a84ff]{% endif %}">
+        {{ task.id }}
+      </span>
+      <span class="text-xs font-semibold uppercase tracking-widest text-white/30">Задача</span>
+    </div>
+    <h2 class="text-sm font-semibold text-white/90 leading-snug">{{ task.title }}</h2>
+    <p class="mt-1 text-xs text-white/40 leading-relaxed">{{ task.description }}</p>
+  </div>
+
+  <!-- Matrix input (binary or weighted) -->
+  {% if task.input_type in ["matrix", "weighted_matrix"] %}
+  <div class="glass-card rounded-2xl px-4 py-4 flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-semibold uppercase tracking-widest text-white/40">
+        {% if task.input_type == "weighted_matrix" %}Взвешенная матрица{% else %}Матрица{% endif %}
+      </span>
+      <div class="flex items-center gap-2">
+        <input type="number" id="matrixSize"
+               value="{% if task.input_type == 'weighted_matrix' %}4{% else %}5{% endif %}"
+               min="2" max="{% if task.input_type == 'weighted_matrix' %}12{% else %}20{% endif %}"
+               class="w-12 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-sm text-center text-white focus:outline-none focus:border-[#ff375f]/50"
+               onchange="buildMatrix()">
+        <button onclick="fillExample()"
+                class="text-xs px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all">
+          Пример
+        </button>
+        <button onclick="clearMatrix()" title="Очистить"
+                class="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 border border-white/10 text-white/50 hover:text-[#ff375f] hover:bg-white/10 transition-all">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div id="matrixContainer" class="overflow-auto"></div>
+    <p class="text-[10px] text-white/25">
+      {% if task.input_type == "weighted_matrix" %}
+        Кликни на ячейку — введи вес (0 = нет ребра, 1–99)
+      {% else %}
+        Кликни на ячейку — переключит 0 / 1
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  <!-- Prufer code input -->
+  {% if task.input_type == "prufer" %}
+  <div class="glass-card rounded-2xl px-4 py-4 flex flex-col gap-3">
+    <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Код Прюфера</span>
+    <input type="text" id="pruferInput" placeholder="Пример: 1 1 2"
+           class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#0a84ff]/50">
+    <p class="text-[10px] text-white/25">Числа через пробел</p>
+  </div>
+  {% endif %}
+
+  <!-- Start node -->
+  {% if task.needs_start_node %}
+  <div class="glass-card rounded-2xl px-4 py-3 flex items-center justify-between">
+    <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Начальная вершина</span>
+    <input type="number" id="startNode" value="0" min="0"
+           class="w-14 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-sm text-center text-white focus:outline-none focus:border-[#ff375f]/50">
+  </div>
+  {% endif %}
+
+  <!-- User order input -->
+  {% if task.get("needs_user_order") %}
+  <div class="glass-card rounded-2xl px-4 py-4 flex flex-col gap-2">
+    <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Ваш обход</span>
+    <input type="text" id="userOrder" placeholder="Пример: 0 2 1 3"
+           class="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#0a84ff]/50">
+  </div>
+  {% endif %}
+
+  <!-- Components count input -->
+  {% if task.get("needs_components_count") %}
+  <div class="glass-card rounded-2xl px-4 py-3 flex items-center justify-between">
+    <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Компоненты</span>
+    <input type="number" id="userComponentsCount" min="1"
+           class="w-14 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-sm text-center text-white focus:outline-none focus:border-[#ff375f]/50">
+  </div>
+  {% endif %}
+
+  <!-- Run button -->
+  <button onclick="runTask()"
+          class="run-btn w-full py-3 rounded-2xl text-sm font-semibold tracking-wide text-white transition-all duration-200 flex items-center justify-center gap-2">
+    <span id="runBtnText">Запустить</span>
+    <span id="runSpinner" class="hidden w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+  </button>
+</div>
+
+<!-- RIGHT: Log drawer -->
+<div class="task-right-panel fixed top-16 right-4 bottom-24 z-20 w-72 flex flex-col gap-3">
+
+  <!-- Step controls -->
+  <div class="glass-card rounded-2xl px-4 py-3 flex items-center justify-between">
+    <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Шаги</span>
+    <div class="flex items-center gap-2">
+      <span id="stepLabel" class="text-xs text-white/40">—</span>
+      <button id="btnPrev" onclick="prevStep()" disabled
+              class="step-btn w-7 h-7 rounded-lg flex items-center justify-center text-white/40 disabled:opacity-30">‹</button>
+      <button id="btnAuto" onclick="toggleAuto()"
+              class="step-btn w-7 h-7 rounded-lg flex items-center justify-center text-white/70">▶</button>
+      <button id="btnNext" onclick="nextStep()" disabled
+              class="step-btn w-7 h-7 rounded-lg flex items-center justify-center text-white/40 disabled:opacity-30">›</button>
+    </div>
+  </div>
+
+  <!-- Result card -->
+  <div id="resultCard" class="glass-card rounded-2xl px-4 py-4 hidden">
+    <span class="text-xs font-semibold uppercase tracking-widest text-white/40 block mb-3">Результат</span>
+    <div id="resultBox" class="text-sm text-white/80 space-y-2"></div>
+  </div>
+
+  <!-- Logs -->
+  <div class="glass-card rounded-2xl flex-1 flex flex-col overflow-hidden">
+    <div class="px-4 py-3 border-b border-white/5">
+      <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Лог алгоритма</span>
+    </div>
+    <div id="logBox" class="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-none">
+      <p class="text-xs text-white/25 text-center pt-4">Запустите алгоритм...</p>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM: Task carousel tab bar -->
+<nav class="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 max-w-3xl w-[calc(100%-2rem)]">
+  <div class="glass-card rounded-2xl flex items-center gap-1 px-1 py-1">
+    <!-- Left arrow -->
+    <button id="tabPrev" onclick="scrollTabs(-1)"
+            class="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
+                   text-white/40 hover:text-white hover:bg-white/8 transition-all duration-150
+                   disabled:opacity-20 disabled:cursor-default">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <!-- Scrollable tabs -->
+    <div id="tabScroll"
+         class="flex gap-1 overflow-x-auto scrollbar-none flex-1"
+         style="scroll-behavior: smooth;">
+      {% for t in tasks %}
+      <a href="/task/{{ t.id }}"
+         id="tab-{{ t.id }}"
+         class="tab-item flex-shrink-0 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 whitespace-nowrap
+                {% if task.id == t.id %}tab-active{% else %}text-white/40 hover:text-white/70 hover:bg-white/5{% endif %}">
+        <span class="opacity-50">{{ t.id }}.</span> {{ t.title | truncate(20, True) }}
+      </a>
+      {% endfor %}
+    </div>
+
+    <!-- Right arrow -->
+    <button id="tabNext" onclick="scrollTabs(1)"
+            class="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center
+                   text-white/40 hover:text-white hover:bg-white/8 transition-all duration-150">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+</nav>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const TASK = {{ task | tojson }};
+  window.addEventListener('DOMContentLoaded', () => {
+    initGraph();
+    if (TASK.input_type === 'matrix' || TASK.input_type === 'weighted_matrix') buildMatrix();
+  });
+</script>
+{% endblock %}
